@@ -4,7 +4,9 @@ import cors from 'cors';
 import morgan from 'morgan';
 //Local imports:
 import authRouter from './routes/auth.js';
+import offerRouter from './routes/offer.js';
 import pgclient from './db.js';
+import { basicAuth, MySupplier, MyBuyer, MyUser } from './roleMiddleware.js';
 
 //Initialization
 const app = express();
@@ -17,7 +19,8 @@ app.use(cors());
 app.use(express.json());
 
 //Endpoints || Routes || Request URLs:
-app.use('/api/books', authRouter); //Login, Sign in, Logout, Profile.
+app.use('/api/auth', authRouter); //Login, Sign in, Logout, Profile.
+app.use('/api/offers', offerRouter); //User, Offers, MyOffers, OfferDetails, OfferCreate.
 
 
 app.use((req,res)=>{
