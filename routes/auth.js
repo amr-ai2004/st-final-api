@@ -1,14 +1,16 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import pgclient from '../db.js';
+import bcrypt from 'bcrypt';
 import { basicAuth, MySupplier, MyBuyer, MyUser } from '../roleMiddleware.js';
 
-
-//Initialization
-const authRouter= express.Router();
+// Initialization
+const authRouter = express.Router();
 dotenv.config();
 
-//Endpoints || Routes || Request URLs:
+// Endpoints || Routes || Request URLs:
+
+// SIGNUP endpoint
 authRouter.post('/signup', async (req, res) => {
   try {
     const {
@@ -25,7 +27,7 @@ authRouter.post('/signup', async (req, res) => {
 
     // Check for duplicate username or email
     const existingUser = await pgclient.query(
-      `SELECT * FROM users WHERE email = $1 OR username = $2`,
+      `SELECT * FROM app_user WHERE email = $1 OR username = $2`,
       [email, username]
     );
 
@@ -41,7 +43,7 @@ authRouter.post('/signup', async (req, res) => {
 
     // Insert user
     const insertQuery = `
-      INSERT INTO users (username, LEI, email, phone, role, city, address1, address2, password)
+      INSERT INTO app_user (username, LEI, email, phone, role, city, address1, address2, password)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id, username, email, role;
     `;
@@ -71,15 +73,12 @@ authRouter.post('/signup', async (req, res) => {
   }
 });
 
-
-// @route   POST /api/auth/login
-// @desc    Log in a user using username and password
-// @access  Public
+// LOGIN endpoint
 authRouter.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     const result = await pgclient.query(
-      'SELECT * FROM users WHERE username = $1',
+      'SELECT * FROM app_user WHERE username = $1',
       [username]
     );
 
@@ -109,5 +108,60 @@ authRouter.post('/login', async (req, res) => {
   }
 });
 
+// GET profile
+authRouter.get('/profile', basicAuth, async (req, res) => {
+  try {
+    const user = req.user;
+
+    // Return user data excluding password
+    const { password, ...userData } = user;
+    return res.json(userData);
+  } catch (err) {
+    console.error('Profile fetch error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// UPDATE profile
+authRouter.put('/profile', basicAuth, async (req, res) => {
+  try {
+    const user = req.user;
+    const {
+      email,
+      phone,
+      city,
+      address1,
+      address2,
+      password // optional
+    } = req.body;
+
+    let hashedPassword = user.password;
+    if (password) {
+      const saltRounds = 10;
+      hashedPassword = await bcrypt.hash(password, saltRounds);
+    }
+
+    const result = await pgclient.query(
+      `UPDATE app_user SET
+        email = $1,
+        phone = $2,
+        city = $3,
+        address1 = $4,
+        address2 = $5,
+        password = $6
+      WHERE username = $7
+      RETURNING id, username, email, phone, city, address1, address2, role`,
+      [email, phone, city, address1, address2, hashedPassword, user.username]
+    );
+
+    return res.json({
+      message: 'Profile updated successfully.',
+      user: result.rows[0]
+    });
+  } catch (err) {
+    console.error('Profile update error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
 
 export default authRouter;

@@ -1,27 +1,31 @@
-// middleware to allow only "supplier"
-const MySupplier = (req, res, next) => {
+import bcrypt from 'bcrypt';
+import pgclient from './db.js'; // Make sure this path correctly points to your pgclient setup
+
+// Middleware to allow only "supplier"
+export const MySupplier = (req, res, next) => {
   if (!req.user || req.user.role !== "supplier") {
     return res.status(403).json({ message: "Access denied: Supplier role required." });
   }
   next();
 };
 
-// middleware to allow only "buyer"
-const MyBuyer = (req, res, next) => {
+// Middleware to allow only "buyer"
+export const MyBuyer = (req, res, next) => {
   if (!req.user || req.user.role !== "buyer") {
     return res.status(403).json({ message: "Access denied: Buyer role required." });
   }
   next();
 };
 
-// middleware to allow either "supplier" or "buyer"
-const MyUser = (req, res, next) => {
+// Middleware to allow either "supplier" or "buyer"
+export const MyUser = (req, res, next) => {
   if (!req.user || !["supplier", "buyer"].includes(req.user.role)) {
     return res.status(403).json({ message: "Access denied: Buyer or Supplier role required." });
   }
   next();
 };
 
+// Basic authentication middleware
 export const basicAuth = async (req, res, next) => {
   try {
     const { username, password } = req.body;
@@ -31,7 +35,7 @@ export const basicAuth = async (req, res, next) => {
     }
 
     const result = await pgclient.query(
-      'SELECT * FROM users WHERE username = $1',
+      'SELECT * FROM app_user WHERE username = $1',
       [username]
     );
 
@@ -53,11 +57,4 @@ export const basicAuth = async (req, res, next) => {
     console.error('Auth error:', err);
     res.status(500).json({ error: 'Internal server error.' });
   }
-};
-
-export default {
-  MySupplier,
-  MyBuyer,
-  MyUser,
-  basicAuth
 };
