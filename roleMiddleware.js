@@ -31,6 +31,7 @@ export const basicAuth = async (req, res, next) => {
     const { username, password } = req.body;
 
     if (!username || !password) {
+      console.log(req.body);
       return res.status(400).json({ error: 'Username and password required.' });
     }
 
@@ -55,6 +56,6 @@ export const basicAuth = async (req, res, next) => {
     next();
   } catch (err) {
     console.error('Auth error:', err);
-    res.status(500).json({ error: 'Internal server error.' });
+    res.status(501).json({ error: 'Internal server error.' });
   }
 };

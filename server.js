@@ -18,6 +18,7 @@ const PORT = process.env.PORT || 3002;
 //Middleware:
 app.use(cors());
 app.use(express.json());
+app.use(morgan("dev"));
 
 //Endpoints || Routes || Request URLs:
 app.use('/api/auth', authRouter); //Login, Sign in, Logout, Profile.
@@ -25,9 +26,9 @@ app.use('/api/offers', offerRouter); //User, Offers, MyOffers, OfferDetails, Off
 
 app.get("/qoute", async(req,res)=>{
     try{
-        let response = await axios('https://api.quotable.io/random')
-        const data = response.data;
-        res.json({qoute: `"${data.content}" — ${data.author}`});
+        let response = await axios('https://zenquotes.io/api/today')
+        const data = response.data[0];
+        res.json({qoute: `"${data.q}" — ${data.a}`});
      }catch(error){
         console.error('Error fetching the quote:', error);
      }

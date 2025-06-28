@@ -12,7 +12,7 @@ dotenv.config();
 //Endpoints || Routes || Request URLs:
 // GET /api/offers
 // Returns all available offers (visible to both buyers and suppliers)
-offerRouter.get('/', basicAuth, async (req, res) => {
+offerRouter.post('/', basicAuth, async (req, res) => {
   try {
     const result = await pgclient.query(`
       SELECT offer.id, offer.product, offer.quantity, offer.start_date, offer.end_date, 
@@ -29,7 +29,7 @@ offerRouter.get('/', basicAuth, async (req, res) => {
 
 // GET /api/offers/myoffers
 // Returns only the offers placed by the logged-in supplier
-offerRouter.get('/myoffers', basicAuth, MySupplier, async (req, res) => {
+offerRouter.post('/myoffers', basicAuth, MySupplier, async (req, res) => {
   try {
     const supplierId = req.user.id;
 
@@ -48,7 +48,7 @@ offerRouter.get('/myoffers', basicAuth, MySupplier, async (req, res) => {
 
 // GET /api/offers/offerdetails/:id
 // Returns detailed info about a single offer (accessible by supplier or buyer)
-offerRouter.get('/offerdetails/:id', basicAuth, MyUser, async (req, res) => {
+offerRouter.post('/offerdetails/:id', basicAuth, MyUser, async (req, res) => {
   try {
     const offerId = req.params.id;
 
@@ -107,9 +107,13 @@ offerRouter.post('/offerbid', basicAuth, MyBuyer, async (req, res) => {
 
 // GET /api/offers/offerbid/:offerId
 // View all bids for a specific offer
-offerRouter.get('/offerbid/:offerId', basicAuth, MyUser, async (req, res) => {
+offerRouter.post('/offerbid/:offerId', basicAuth, MyUser, async (req, res) => {
   try {
-    const offerId = req.params.offerId;
+    const offerId = parseInt(req.params.offerId);
+
+    if (isNaN(offerId)) {
+      return res.status(400).json({ error: 'Invalid offer ID.' });
+    }
 
     const result = await pgclient.query(
       `SELECT b.id, b.price, b.bidder, u.username AS bidder_name
@@ -120,7 +124,7 @@ offerRouter.get('/offerbid/:offerId', basicAuth, MyUser, async (req, res) => {
     );
 
     return res.json({
-      offerId: offerId,
+      offerId,
       totalBids: result.rows.length,
       bids: result.rows,
     });
@@ -129,6 +133,7 @@ offerRouter.get('/offerbid/:offerId', basicAuth, MyUser, async (req, res) => {
     return res.status(500).json({ error: 'Internal server error.' });
   }
 });
+
 
 // POST /api/offers/offercreate
 // Suppliers can create a new offer
@@ -162,6 +167,46 @@ offerRouter.post('/offercreate', basicAuth, MySupplier, async (req, res) => {
   } catch (err) {
     console.error('Error creating offer:', err);
     return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// DELETE /api/offers/:id
+// DELETE /api/offers/:id
+offerRouter.delete('/:id', basicAuth, MySupplier, async (req, res) => {
+  try {
+    const offerId = parseInt(req.params.id);
+    const { username } = req.body;
+
+    if (isNaN(offerId)) {
+      return res.status(400).json({ error: 'Invalid offer ID' });
+    }
+
+    // Get user ID from username
+    const userResult = await pgclient.query(
+      'SELECT id FROM app_user WHERE username = $1',
+      [username]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userId = userResult.rows[0].id;
+
+    // Delete the offer only if the user is the offerer
+    const result = await pgclient.query(
+      'DELETE FROM offer WHERE id = $1 AND offerer = $2',
+      [offerId, userId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(403).json({ error: 'Unauthorized or offer not found' });
+    }
+
+    res.status(200).json({ message: 'Offer deleted successfully' });
+  } catch (err) {
+    console.error("Delete Offer Error:", err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
