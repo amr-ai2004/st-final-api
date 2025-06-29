@@ -109,7 +109,7 @@ authRouter.post('/login', async (req, res) => {
 });
 
 // GET profile
-authRouter.get('/profile', basicAuth, async (req, res) => {
+authRouter.post('/profile', basicAuth, async (req, res) => {
   try {
     const user = req.user;
 
